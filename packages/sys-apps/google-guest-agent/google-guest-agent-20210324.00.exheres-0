@@ -1,0 +1,44 @@
+# Copyright 2021 Pierre-Yves Aillet <pyaillet@gmail.com>
+# Distributed under the terms of the GNU General Public License v2
+
+require github [ user='GoogleCloudPlatform' project='guest-agent' tag=${PV} ]
+require systemd-service [ systemd_files=[ google-{guest-agent,{startup,shutdown}-scripts}.service ] ]
+
+SUMMARY="Guest Agent for Google Compute Engine"
+HOMEPAGE="https://github.com/GoogleCloudPlatform/guest-agent"
+
+LICENCES="Apache-2.0"
+SLOT="0"
+PLATFORMS="~amd64"
+
+DEPENDENCIES="
+    build:
+        dev-lang/go[>=1.13]
+"
+
+RESTRICT="test strip"
+
+GOWORK=src/github.com/${PN}
+TMP_GOPATH=tmp/gopath/
+
+src_prepare() {
+    default
+
+    edo mkdir -p ${TMP_GOPATH}
+    edo mkdir -p ${GOWORK}
+    edo ln -s ${WORK} ${GOWORK}
+}
+
+src_compile() {
+    esandbox disable_net
+    GOPATH=$(pwd)/${TMP_GOPATH} edo go build -o google_guest_agent.bin ./google_guest_agent
+    GOPATH=$(pwd)/${TMP_GOPATH} edo go build -o google_metadata_script_runner.bin ./google_metadata_script_runner
+    esandbox enable_net
+}
+
+src_install() {
+    newbin ${WORK}/google_guest_agent.bin google_guest_agent
+    newbin ${WORK}/google_metadata_script_runner.bin google_metadata_script_runner
+
+    install_systemd_files
+}
